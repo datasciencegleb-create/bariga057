@@ -119,12 +119,12 @@ function ProductCard({ product, isInCart, onAddToCart, onOpenGallery }) {
       {/* Product Information */}
       <div className="p-4 flex flex-col flex-grow justify-between">
         <div>
-          {/* Brand - Caps & Bold, White color */}
-          <span className="text-[10px] tracking-wider text-white font-bold uppercase block">
+          {/* Brand - Caps & Bold, Neutral Grey color */}
+          <span className="text-[10px] tracking-wider text-neutral-500 font-bold uppercase block">
             {product.brand}
           </span>
-          {/* Model Name */}
-          <h3 className="text-xs text-neutral-400 font-light mt-0.5 tracking-wider truncate uppercase">
+          {/* Model Name - White, medium weight */}
+          <h3 className="text-xs text-white font-medium mt-0.5 tracking-wider truncate uppercase">
             {product.model}
           </h3>
           
@@ -469,7 +469,7 @@ function App() {
                           <div className="flex-grow flex flex-col justify-between py-0.5">
                             <div>
                               <span className="text-[9px] tracking-wider text-neutral-500 font-bold uppercase block">{item.brand}</span>
-                              <h4 className="text-xs text-[#e5e5e5] font-light tracking-wide uppercase truncate max-w-[160px]">{item.model}</h4>
+                              <h4 className="text-xs text-white font-medium tracking-wide uppercase truncate max-w-[160px]">{item.model}</h4>
                               <span className="text-[8px] text-neutral-400 font-semibold bg-neutral-900/60 px-1.5 py-0.5 rounded-[5px] border border-neutral-800/20 uppercase mt-1 inline-block">
                                 Size: {item.size} • {item.cond}
                               </span>
@@ -631,35 +631,35 @@ function App() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
-            className="fixed inset-0 z-50 bg-black flex flex-col justify-between py-12 px-6"
+            className="fixed inset-0 z-50 bg-black flex flex-col justify-between items-center py-6 px-6 h-[100dvh] overflow-hidden"
           >
             {/* Header Block */}
-            <div className="flex justify-between items-center w-full relative z-10">
-              <span className="text-[10px] tracking-[0.2em] font-semibold text-neutral-400 uppercase">
+            <div className="flex justify-between items-center w-full relative z-10 flex-shrink-0">
+              <span className="text-[9px] tracking-[0.2em] font-semibold text-neutral-400 uppercase">
                 {galleryIndex + 1} / {galleryProduct.images.length}
               </span>
               <button 
                 type="button"
                 onClick={closeGallery}
-                className="text-neutral-400 hover:text-white p-2 bg-neutral-900/60 rounded-full border border-neutral-800/30 transition-colors cursor-pointer"
+                className="text-neutral-400 hover:text-white p-1.5 bg-neutral-900/60 rounded-full border border-neutral-800/30 transition-colors cursor-pointer"
               >
-                <X size={18} strokeWidth={1.5} />
+                <X size={15} strokeWidth={1.5} />
               </button>
             </div>
 
             {/* Center Swipeable Image Wrapper */}
-            <div className="relative flex-grow flex items-center justify-center py-6 w-full">
+            <div className="relative flex-grow flex items-center justify-center w-full min-h-0 my-2">
               <motion.div 
                 initial={{ scale: 0.95, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 exit={{ scale: 0.95, opacity: 0 }}
                 transition={{ type: "spring", stiffness: 150, damping: 18 }}
-                className="relative w-full max-w-sm aspect-[4/5] bg-neutral-950 rounded-[24px] overflow-hidden border border-neutral-800/10 shadow-2xl"
+                className="relative w-full max-w-sm max-h-[50vh] bg-neutral-950 rounded-[24px] overflow-hidden border border-neutral-800/10 shadow-2xl flex items-center justify-center aspect-[4/5]"
               >
                 <img 
                   src={galleryProduct.images[galleryIndex]} 
                   alt="Fullscreen View" 
-                  className="w-full h-full object-cover"
+                  className="w-full h-full max-h-[50vh] object-contain"
                   draggable="false"
                   onContextMenu={(e) => e.preventDefault()}
                 />
@@ -669,27 +669,27 @@ function App() {
               <button
                 type="button"
                 onClick={handlePrevPhoto}
-                className="absolute left-0 top-1/2 -translate-y-1/2 p-3 rounded-full bg-neutral-900/80 text-white hover:bg-neutral-800 transition-colors border border-neutral-800/20 active:scale-90"
+                className="absolute left-0 top-1/2 -translate-y-1/2 p-2.5 rounded-full bg-neutral-900/80 text-white hover:bg-neutral-800 transition-colors border border-neutral-800/20 active:scale-90"
               >
-                <ChevronLeft size={18} strokeWidth={2} />
+                <ChevronLeft size={16} strokeWidth={2} />
               </button>
 
               {/* Right Arrow */}
               <button
                 type="button"
                 onClick={handleNextPhoto}
-                className="absolute right-0 top-1/2 -translate-y-1/2 p-3 rounded-full bg-neutral-900/80 text-white hover:bg-neutral-800 transition-colors border border-neutral-800/20 active:scale-90"
+                className="absolute right-0 top-1/2 -translate-y-1/2 p-2.5 rounded-full bg-neutral-900/80 text-white hover:bg-neutral-800 transition-colors border border-neutral-800/20 active:scale-90"
               >
-                <ChevronRight size={18} strokeWidth={2} />
+                <ChevronRight size={16} strokeWidth={2} />
               </button>
             </div>
 
             {/* Bottom Metadata Block */}
-            <div className="text-center space-y-2 relative z-10">
+            <div className="text-center space-y-1 relative z-10 flex-shrink-0 w-full py-2">
               <span className="text-[9px] tracking-[0.25em] text-neutral-500 font-bold uppercase block">
                 {galleryProduct.brand}
               </span>
-              <h4 className="text-xs text-white/90 font-light tracking-widest uppercase">
+              <h4 className="text-xs text-white font-medium tracking-widest uppercase truncate px-4">
                 {galleryProduct.model}
               </h4>
               <p className="text-[9px] text-neutral-450 tracking-wider font-light uppercase">
