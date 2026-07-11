@@ -221,23 +221,35 @@ function App() {
   // Initialize Telegram WebApp SDK & Load Catalog Data from CSV
   useEffect(() => {
     // --- Telegram WebApp init ---
-    // IMPORTANT: call ready() FIRST so the SDK fires its own init chain,
-    // then read initDataUnsafe AFTER it has been populated.
+    // Read user data from initDataUnsafe — no ID/name restrictions.
+    // ANY user who opens the app through Telegram will have their data shown.
     const tg = window.Telegram?.WebApp;
     if (tg) {
       tg.ready();
       tg.expand();
 
-      // Force deep dark theme
+      // Force deep dark theme (wrapped in try in case older SDK versions lack these methods)
       try { tg.setHeaderColor('#000000'); } catch (_) {}
       try { tg.setBackgroundColor('#000000'); } catch (_) {}
       try { tg.enableClosingConfirmation(); } catch (_) {}
 
-      // Primary read: immediately after ready()
+      // Primary read: synchronous, available right after ready()
       const tgUser = tg.initDataUnsafe?.user;
       if (tgUser) {
         setUser(tgUser);
       }
+
+      // Fallback: some clients populate initDataUnsafe slightly after ready().
+      // We listen for any WebApp event to retry reading user data once more.
+      const retryReadUser = () => {
+        const retryUser = window.Telegram?.WebApp?.initDataUnsafe?.user;
+        if (retryUser) setUser(retryUser);
+      };
+      try { tg.onEvent('viewportChanged', retryReadUser); } catch (_) {}
+
+      return () => {
+        try { tg.offEvent('viewportChanged', retryReadUser); } catch (_) {}
+      };
     }
 
     // Load data from Google Sheets CSV Pub link
