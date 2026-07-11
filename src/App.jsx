@@ -218,52 +218,48 @@ function App() {
   // Checkout states
   const [checkoutStep, setCheckoutStep] = useState('idle');
 
-  // Initialize Telegram WebApp SDK & Load Catalog Data from CSV
+  // ── 1. Telegram WebApp init (safe, isolated from catalog loading) ──────────
   useEffect(() => {
-    // --- Telegram WebApp init ---
-    // Read user data from initDataUnsafe — no ID/name restrictions.
-    // ANY user who opens the app through Telegram will have their data shown.
     const tg = window.Telegram?.WebApp;
-    if (tg) {
+    if (!tg) return; // Running in a regular browser — skip silently
+
+    try {
       tg.ready();
       tg.expand();
 
-      // Force deep dark theme (wrapped in try in case older SDK versions lack these methods)
+      // Theme — safe, older SDK may not have these methods
       try { tg.setHeaderColor('#000000'); } catch (_) {}
       try { tg.setBackgroundColor('#000000'); } catch (_) {}
       try { tg.enableClosingConfirmation(); } catch (_) {}
 
-      // Primary read: synchronous, available right after ready()
+      // Read user — no ID/name restrictions, accepts ANY Telegram user
       const tgUser = tg.initDataUnsafe?.user;
-      if (tgUser) {
-        setUser(tgUser);
-      }
+      if (tgUser) setUser(tgUser);
 
-      // Fallback: some clients populate initDataUnsafe slightly after ready().
-      // We listen for any WebApp event to retry reading user data once more.
+      // Fallback: retry after viewport fires (some clients lag on initDataUnsafe)
       const retryReadUser = () => {
-        const retryUser = window.Telegram?.WebApp?.initDataUnsafe?.user;
+        const retryUser = tg.initDataUnsafe?.user;
         if (retryUser) setUser(retryUser);
       };
-      try { tg.onEvent('viewportChanged', retryReadUser); } catch (_) {}
+      tg.onEvent('viewportChanged', retryReadUser);
 
       return () => {
         try { tg.offEvent('viewportChanged', retryReadUser); } catch (_) {}
       };
+    } catch (error) {
+      console.error('Telegram SDK init error:', error);
     }
+  }, []);
 
-    // Load data from Google Sheets CSV Pub link
+  // ── 2. Load catalog from Google Sheets CSV (always runs, independent of TG) ─
+  useEffect(() => {
     const fetchCatalog = async () => {
       try {
         setLoading(true);
-        // Using output=csv for direct spreadsheet exports
         const response = await fetch('https://docs.google.com/spreadsheets/d/e/2PACX-1vSw-OmLbLzeU932U3kcRChJGPRibjGnuAnjYGrftq1ODnr5vtWLFJdwuq9R7XgT1H1Aju7grysAKedg/pub?output=csv');
-        if (!response.ok) {
-          throw new Error('Failed to retrieve spreadsheet payload');
-        }
+        if (!response.ok) throw new Error('Failed to retrieve spreadsheet payload');
         const csvText = await response.text();
-        const parsedProducts = parseCSV(csvText);
-        setProducts(parsedProducts);
+        setProducts(parseCSV(csvText));
       } catch (err) {
         console.error('Spreadsheet loading failure:', err);
         setError(err.message);
