@@ -11,7 +11,8 @@ import {
   ChevronRight,
   User,
   Search,
-  Home
+  Home,
+  SlidersHorizontal
 } from 'lucide-react'
 
 // DETAILED PRODUCT CATALOG - RENAME BRAND VALUE STRICTLY TO BARIGA057
@@ -74,16 +75,23 @@ const PRODUCTS = [
   }
 ];
 
-// Product Card Component with uniform 24px roundings, CAPS brand names, and price/add row
-function ProductCard({ product, onAddToCart, onOpenGallery }) {
-  const [isAdded, setIsAdded] = useState(false);
+// Utility helper to convert condition text to numeric values for sorting
+const parseCondition = (cond) => {
+  if (!cond) return 0;
+  const upper = cond.toUpperCase().trim();
+  if (upper === 'VNDS' || upper === '10/10' || upper === '10') return 10.0;
+  if (upper.includes('/10')) {
+    const val = parseFloat(upper.split('/10')[0]);
+    return isNaN(val) ? 0 : val;
+  }
+  return parseFloat(cond) || 0;
+};
 
+// Product Card Component with uniform 24px roundings, CAPS brand names, and price/add row
+function ProductCard({ product, isInCart, onAddToCart, onOpenGallery }) {
   const handleAdd = () => {
-    setIsAdded(true);
+    if (isInCart) return;
     onAddToCart(product);
-    setTimeout(() => {
-      setIsAdded(false);
-    }, 800);
   };
 
   return (
@@ -135,13 +143,14 @@ function ProductCard({ product, onAddToCart, onOpenGallery }) {
           <button
             type="button"
             onClick={handleAdd}
-            className={`w-7 h-7 rounded-[10px] flex items-center justify-center transition-all duration-300 shadow-md ${
-              isAdded 
-                ? 'bg-emerald-600 text-white animate-pop' 
-                : 'bg-[#e5e5e5] text-black hover:bg-white active:scale-90'
+            disabled={isInCart}
+            className={`w-7 h-7 rounded-[10px] flex items-center justify-center transition-all duration-300 ${
+              isInCart 
+                ? 'bg-neutral-800 text-neutral-500 border border-neutral-750/30' 
+                : 'bg-[#e5e5e5] text-black hover:bg-white active:scale-90 shadow-md'
             }`}
           >
-            {isAdded ? (
+            {isInCart ? (
               <Check size={12} strokeWidth={3} />
             ) : (
               <Plus size={12} strokeWidth={3} />
@@ -162,6 +171,11 @@ function App() {
   // Fullscreen photo gallery modal states
   const [galleryProduct, setGalleryProduct] = useState(null);
   const [galleryIndex, setGalleryIndex] = useState(0);
+
+  // Sorting Bottom Sheet States (Support combined multi-sorting)
+  const [showFilters, setShowFilters] = useState(false);
+  const [sortByPrice, setSortByPrice] = useState('none'); // 'none', 'price_asc', 'price_desc'
+  const [sortByCond, setSortByCond] = useState('none');   // 'none', 'cond_desc', 'cond_asc'
 
   // Checkout states
   const [checkoutStep, setCheckoutStep] = useState('idle');
@@ -196,18 +210,12 @@ function App() {
     return `${day}.${month}.${year}, ${hours}:${minutes}`;
   };
 
-  // Cart Functions
+  // Cart Functions (Restricted to unique unit copies)
   const addToCart = (product) => {
     setCart(prevCart => {
-      const existingItem = prevCart.find(item => item.id === product.id);
-      if (existingItem) {
-        return prevCart.map(item => 
-          item.id === product.id 
-            ? { ...item, quantity: item.quantity + 1 }
-            : item
-        );
-      }
-      return [...prevCart, { ...product, quantity: 1 }];
+      const exists = prevCart.some(item => item.id === product.id);
+      if (exists) return prevCart;
+      return [...prevCart, product];
     });
 
     if (window.Telegram?.WebApp?.HapticFeedback) {
@@ -215,38 +223,50 @@ function App() {
     }
   };
 
-  const updateQuantity = (id, delta) => {
-    setCart(prevCart => {
-      return prevCart.map(item => {
-        if (item.id === id) {
-          const newQty = item.quantity + delta;
-          return newQty > 0 ? { ...item, quantity: newQty } : null;
-        }
-        return item;
-      }).filter(Boolean);
-    });
-
+  const removeFromCart = (id) => {
+    setCart(prevCart => prevCart.filter(item => item.id !== id));
     if (window.Telegram?.WebApp?.HapticFeedback) {
       window.Telegram.WebApp.HapticFeedback.impactOccurred('light');
     }
   };
 
   const getCartTotal = () => {
-    return cart.reduce((total, item) => total + item.price * item.quantity, 0);
+    return cart.reduce((total, item) => total + item.price, 0);
   };
 
-  const getCartCount = () => {
-    return cart.reduce((count, item) => count + item.quantity, 0);
-  };
-
-  // Real-time Brand Search Filtering
+  // Real-time Brand Search Filtering & Combined Multi-level Sorting
   const getFilteredProducts = () => {
-    if (searchQuery.trim() === '') return PRODUCTS;
-    const query = searchQuery.toLowerCase();
-    return PRODUCTS.filter(p => 
-      p.brand.toLowerCase().includes(query) ||
-      p.model.toLowerCase().includes(query)
-    );
+    let list = [...PRODUCTS];
+    
+    // 1. Search Query filtering
+    if (searchQuery.trim() !== '') {
+      const query = searchQuery.toLowerCase();
+      list = list.filter(p => 
+        p.brand.toLowerCase().includes(query) ||
+        p.model.toLowerCase().includes(query)
+      );
+    }
+    
+    // 2. Combined Sorting Criteria evaluation
+    list.sort((a, b) => {
+      // First Level: Sort by Condition if selected
+      if (sortByCond !== 'none') {
+        const scoreA = parseCondition(a.cond);
+        const scoreB = parseCondition(b.cond);
+        if (scoreA !== scoreB) {
+          return sortByCond === 'cond_desc' ? scoreB - scoreA : scoreA - scoreB;
+        }
+      }
+      
+      // Second Level: Sort by Price if selected
+      if (sortByPrice !== 'none') {
+        return sortByPrice === 'price_asc' ? a.price - b.price : b.price - a.price;
+      }
+      
+      return 0;
+    });
+    
+    return list;
   };
 
   // Telegram SDK sendData Checkout and Close App
@@ -258,7 +278,7 @@ function App() {
         id: item.id,
         name: item.model,
         price: item.price,
-        quantity: item.quantity,
+        quantity: 1, // Quantity is strictly 1 for unique items
         size: item.size
       })),
       total: getCartTotal()
@@ -333,25 +353,43 @@ function App() {
             {/* VIEW 1: CATALOG (HOME) */}
             {activeTab === 'Home' && (
               <div className="flex flex-col">
-                {/* Search Bar (24px rounded-2xl) */}
+                {/* Search Bar (24px rounded-2xl) with integrated Sliders Filters Button */}
                 <div className="relative mt-2 z-20">
                   <input 
                     type="text" 
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     placeholder="SEARCH BRANDS..."
-                    className="w-full bg-[#1c1c1c] text-xs text-[#e5e5e5] rounded-[24px] py-3.5 pl-10 pr-9 placeholder-neutral-500 border border-neutral-800/10 focus:outline-none focus:border-neutral-750 transition-all font-light uppercase tracking-wider"
+                    className="w-full bg-[#1c1c1c] text-xs text-[#e5e5e5] rounded-[24px] py-3.5 pl-10 pr-12 placeholder-neutral-500 border border-neutral-800/10 focus:outline-none focus:border-neutral-750 transition-all font-light uppercase tracking-wider"
                   />
                   <Search size={14} strokeWidth={1.5} className="absolute left-4 top-1/2 -translate-y-1/2 text-neutral-500" />
-                  {searchQuery && (
+                  
+                  {/* Absolute controls stack on the right */}
+                  <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center space-x-2.5">
+                    {searchQuery && (
+                      <button 
+                        type="button"
+                        onClick={() => setSearchQuery('')}
+                        className="text-neutral-500 hover:text-white transition-colors"
+                      >
+                        <X size={14} strokeWidth={1.5} />
+                      </button>
+                    )}
                     <button 
                       type="button"
-                      onClick={() => setSearchQuery('')}
-                      className="absolute right-4 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-white"
+                      onClick={() => {
+                        setShowFilters(true);
+                        if (window.Telegram?.WebApp?.HapticFeedback) {
+                          window.Telegram.WebApp.HapticFeedback.impactOccurred('light');
+                        }
+                      }}
+                      className={`transition-colors p-1 -m-1 ${
+                        (sortByPrice !== 'none' || sortByCond !== 'none') ? 'text-white' : 'text-neutral-500 hover:text-neutral-350'
+                      }`}
                     >
-                      <X size={14} strokeWidth={1.5} />
+                      <SlidersHorizontal size={14} strokeWidth={1.8} />
                     </button>
-                  )}
+                  </div>
                 </div>
 
                 {/* Catalog Grid */}
@@ -360,6 +398,7 @@ function App() {
                     <ProductCard 
                       key={product.id}
                       product={product}
+                      isInCart={cart.some(item => item.id === product.id)}
                       onAddToCart={addToCart}
                       onOpenGallery={openGallery}
                     />
@@ -378,7 +417,7 @@ function App() {
             {activeTab === 'Cart' && (
               <div className="py-2 space-y-6">
                 <h2 className="text-xs tracking-[0.2em] text-neutral-400 font-semibold uppercase border-b border-neutral-800/30 pb-3">
-                  Корзина ({getCartCount()})
+                  Корзина ({cart.length})
                 </h2>
 
                 {checkoutStep === 'success' ? (
@@ -436,35 +475,22 @@ function App() {
                               </span>
                             </div>
                             
-                            <div className="flex items-center space-x-2 mt-2">
-                              <button 
-                                type="button"
-                                onClick={() => updateQuantity(item.id, -1)}
-                                className="w-5 h-5 bg-[#1c1c1c] border border-neutral-800/40 rounded-[5px] flex items-center justify-center hover:bg-neutral-800 active:scale-90"
-                              >
-                                <Minus size={9} strokeWidth={2} />
-                              </button>
-                              <span className="text-[11px] font-semibold px-2 text-neutral-300">{item.quantity}</span>
-                              <button 
-                                type="button"
-                                onClick={() => updateQuantity(item.id, 1)}
-                                className="w-5 h-5 bg-[#1c1c1c] border border-neutral-800/40 rounded-[5px] flex items-center justify-center hover:bg-neutral-800 active:scale-90"
-                              >
-                                <Plus size={9} strokeWidth={2} />
-                              </button>
+                            {/* Quantity counters deleted (Only 1 item is ever in stock) */}
+                            <div className="mt-2 text-[9px] text-neutral-500 uppercase tracking-widest font-light">
+                              В наличии: 1 шт.
                             </div>
                           </div>
 
                           <div className="flex flex-col justify-between items-end py-0.5">
                             <button 
                               type="button"
-                              onClick={() => updateQuantity(item.id, -item.quantity)}
+                              onClick={() => removeFromCart(item.id)}
                               className="text-neutral-600 hover:text-neutral-450 p-1 transition-colors"
                             >
                               <X size={14} strokeWidth={1.5} />
                             </button>
                             <span className="text-xs text-neutral-450 font-light">
-                              ${item.price * item.quantity}.00
+                              ${item.price}.00
                             </span>
                           </div>
                         </div>
@@ -580,7 +606,7 @@ function App() {
           <span className="text-[8px] font-light tracking-wider uppercase">Корзина</span>
           {cart.length > 0 && (
             <span className="absolute top-2.5 right-[33%] w-2 h-2 bg-white rounded-full flex items-center justify-center text-[6px] font-black text-black scale-90">
-              {getCartCount()}
+              {cart.length}
             </span>
           )}
         </button>
@@ -671,6 +697,139 @@ function App() {
               </p>
             </div>
           </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* SORTING BOTTOM SHEET DIALOG */}
+      <AnimatePresence>
+        {showFilters && (
+          <>
+            {/* Backdrop */}
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowFilters(false)}
+              className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 max-w-md mx-auto"
+            />
+            
+            {/* Bottom Sheet wrapper */}
+            <motion.div 
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              transition={{ type: "spring", damping: 25, stiffness: 220 }}
+              drag="y"
+              dragConstraints={{ top: 0 }}
+              dragElastic={0.25}
+              onDragEnd={(e, info) => {
+                // If dragged down past threshold, close sheet
+                if (info.offset.y > 100) {
+                  setShowFilters(false);
+                }
+              }}
+              className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-[#1c1c1c] rounded-t-[32px] border-t border-neutral-800/40 p-6 pb-8 z-50 select-none shadow-2xl flex flex-col items-center"
+            >
+              {/* Drag Handle Indicator */}
+              <div className="w-12 h-1 bg-neutral-700 rounded-full mb-6 flex-shrink-0 cursor-grab active:cursor-grabbing" />
+
+              <div className="w-full text-center space-y-5">
+                
+                {/* Header Container with RESET button in the corner */}
+                <div className="flex justify-between items-center w-full pb-1">
+                  <div className="w-12" /> {/* Spacer for centering */}
+                  <h3 className="text-xs font-bold tracking-[0.25em] text-[#e5e5e5] uppercase">
+                    Сортировка
+                  </h3>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSortByPrice('none');
+                      setSortByCond('none');
+                      if (window.Telegram?.WebApp?.HapticFeedback) {
+                        window.Telegram.WebApp.HapticFeedback.notificationOccurred('warning');
+                      }
+                    }}
+                    className="text-[9px] font-semibold tracking-wider text-neutral-500 hover:text-white uppercase transition-colors"
+                  >
+                    Сбросить
+                  </button>
+                </div>
+
+                {/* Grid of Pill Filter Buttons */}
+                <div className="flex flex-col gap-3.5 w-full">
+                  
+                  {/* Subtitle: По цене */}
+                  <div className="text-[9px] tracking-wider text-neutral-500 font-bold uppercase text-left">
+                    По цене
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setSortByPrice(sortByPrice === 'price_asc' ? 'none' : 'price_asc')}
+                      className={`py-3 px-4 rounded-full text-[10px] font-bold tracking-widest uppercase transition-all duration-300 ${
+                        sortByPrice === 'price_asc'
+                          ? 'bg-white text-black font-extrabold shadow-lg shadow-white/5'
+                          : 'bg-neutral-900 text-neutral-450 border border-neutral-800/40'
+                      }`}
+                    >
+                      От дешевых
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSortByPrice(sortByPrice === 'price_desc' ? 'none' : 'price_desc')}
+                      className={`py-3 px-4 rounded-full text-[10px] font-bold tracking-widest uppercase transition-all duration-300 ${
+                        sortByPrice === 'price_desc'
+                          ? 'bg-white text-black font-extrabold shadow-lg shadow-white/5'
+                          : 'bg-neutral-900 text-neutral-450 border border-neutral-800/40'
+                      }`}
+                    >
+                      От дорогих
+                    </button>
+                  </div>
+
+                  {/* Subtitle: По состоянию */}
+                  <div className="text-[9px] tracking-wider text-neutral-500 font-bold uppercase text-left mt-2">
+                    По состоянию
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setSortByCond(sortByCond === 'cond_desc' ? 'none' : 'cond_desc')}
+                      className={`py-3 px-4 rounded-full text-[10px] font-bold tracking-widest uppercase transition-all duration-300 ${
+                        sortByCond === 'cond_desc'
+                          ? 'bg-white text-black font-extrabold shadow-lg shadow-white/5'
+                          : 'bg-neutral-900 text-neutral-450 border border-neutral-800/40'
+                      }`}
+                    >
+                      От нового
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSortByCond(sortByCond === 'cond_asc' ? 'none' : 'cond_asc')}
+                      className={`py-3 px-4 rounded-full text-[10px] font-bold tracking-widest uppercase transition-all duration-300 ${
+                        sortByCond === 'cond_asc'
+                          ? 'bg-white text-black font-extrabold shadow-lg shadow-white/5'
+                          : 'bg-neutral-900 text-neutral-450 border border-neutral-800/40'
+                      }`}
+                    >
+                      От б/у
+                    </button>
+                  </div>
+
+                </div>
+
+                {/* Close Button / Apply Button */}
+                <button
+                  type="button"
+                  onClick={() => setShowFilters(false)}
+                  className="w-full bg-[#e5e5e5] text-black py-3 rounded-full text-[10px] font-bold tracking-[0.2em] transition-all uppercase mt-6 active:scale-95 shadow-md"
+                >
+                  Применить
+                </button>
+              </div>
+            </motion.div>
+          </>
         )}
       </AnimatePresence>
 
