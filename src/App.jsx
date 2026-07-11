@@ -15,65 +15,67 @@ import {
   SlidersHorizontal
 } from 'lucide-react'
 
-// DETAILED PRODUCT CATALOG - RENAME BRAND VALUE STRICTLY TO BARIGA057
-const PRODUCTS = [
-  {
-    id: 1,
-    brand: "BARIGA057",
-    model: "MINIMALIST TITANIUM WATCH",
-    price: 120,
-    size: "40MM",
-    cond: "9.5/10",
-    kit: "Full set",
-    images: [
-      "/images/item1.png",
-      "https://images.unsplash.com/photo-1522312346375-d1a52e2b99b3?q=80&w=600&auto=format&fit=crop",
-      "https://images.unsplash.com/photo-1547996160-81dfa63595aa?q=80&w=600&auto=format&fit=crop"
-    ]
-  },
-  {
-    id: 2,
-    brand: "BARIGA057",
-    model: "HEAVY COTTON HOODIE",
-    price: 85,
-    size: "L",
-    cond: "10/10",
-    kit: "No bag",
-    images: [
-      "/images/item2.png",
-      "https://images.unsplash.com/photo-1556821840-3a63f95609a7?q=80&w=600&auto=format&fit=crop",
-      "https://images.unsplash.com/photo-1543163521-1bf539c55dd2?q=80&w=600&auto=format&fit=crop"
-    ]
-  },
-  {
-    id: 3,
-    brand: "BARIGA057",
-    model: "MATTE LEATHER BACKPACK",
-    price: 195,
-    size: "M",
-    cond: "VNDS",
-    kit: "Full set",
-    images: [
-      "/images/item3.png",
-      "https://images.unsplash.com/photo-1553062407-98eeb64c6a62?q=80&w=600&auto=format&fit=crop",
-      "https://images.unsplash.com/photo-1622560480605-d83c853bc5c3?q=80&w=600&auto=format&fit=crop"
-    ]
-  },
-  {
-    id: 4,
-    brand: "BARIGA057",
-    model: "ALUMINUM WIRELESS EARBUDS",
-    price: 140,
-    size: "ONE SIZE",
-    cond: "9/10",
-    kit: "Box & cables",
-    images: [
-      "/images/item4.png",
-      "https://images.unsplash.com/photo-1590658268037-6bf12165a8df?q=80&w=600&auto=format&fit=crop",
-      "https://images.unsplash.com/photo-1608156639585-b3a032ef9689?q=80&w=600&auto=format&fit=crop"
-    ]
+// A simple yet robust CSV parser to extract fields correctly, handling quoted values (like images list)
+const parseCSV = (csvText) => {
+  const lines = csvText.split(/\r?\n/).filter(line => line.trim() !== '');
+  if (lines.length < 2) return [];
+
+  // Parse headers
+  const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+  
+  const parsedData = [];
+  for (let i = 1; i < lines.length; i++) {
+    const line = lines[i];
+    const row = [];
+    let insideQuote = false;
+    let currentField = '';
+
+    for (let charIdx = 0; charIdx < line.length; charIdx++) {
+      const char = line[charIdx];
+      if (char === '"') {
+        insideQuote = !insideQuote;
+      } else if (char === ',' && !insideQuote) {
+        row.push(currentField.trim());
+        currentField = '';
+      } else {
+        currentField += char;
+      }
+    }
+    row.push(currentField.trim());
+
+    // Skip empty lines or mismatching columns
+    if (row.length < headers.length) continue;
+
+    // Map headers to row fields
+    const obj = {};
+    headers.forEach((header, idx) => {
+      let val = row[idx] || '';
+      // Clean up surrounding quotes if any
+      if (val.startsWith('"') && val.endsWith('"')) {
+        val = val.substring(1, val.length - 1);
+      }
+      obj[header] = val;
+    });
+
+    // Parse image urls into array
+    if (obj.images) {
+      obj.images = obj.images.split(',')
+        .map(url => url.trim().replace(/^"|"$/g, ''))
+        .filter(Boolean);
+    } else {
+      obj.images = [];
+    }
+
+    // Parse numeric price
+    obj.price = parseFloat(obj.price) || 0;
+    
+    // Parse numeric ID
+    obj.id = parseInt(obj.id, 10) || i;
+
+    parsedData.push(obj);
   }
-];
+  return parsedData;
+};
 
 // Utility helper to convert condition text to numeric values for sorting
 const parseCondition = (cond) => {
@@ -121,7 +123,7 @@ function ProductCard({ product, isInCart, onAddToCart, onOpenGallery }) {
         <div>
           {/* Brand - Caps & Bold, Neutral Grey color */}
           <span className="text-[10px] tracking-wider text-neutral-500 font-bold uppercase block">
-            {product.brand}
+            BARIGA057
           </span>
           {/* Model Name - White, medium weight */}
           <h3 className="text-xs text-white font-medium mt-0.5 tracking-wider truncate uppercase">
@@ -162,15 +164,46 @@ function ProductCard({ product, isInCart, onAddToCart, onOpenGallery }) {
   );
 }
 
+// Skeleton Grid loader during fetch operation
+function SkeletonLoader() {
+  return (
+    <div className="grid grid-cols-2 gap-4 mt-6 pb-8">
+      {[1, 2, 3, 4].map((i) => (
+        <div key={i} className="flex flex-col bg-[#1c1c1c] rounded-[24px] overflow-hidden border border-neutral-800/10 shadow-lg relative animate-pulse select-none">
+          <div className="aspect-[4/5] bg-neutral-900 w-full" />
+          <div className="p-4 flex flex-col space-y-3 flex-grow justify-between">
+            <div className="space-y-2">
+              <div className="h-2.5 bg-neutral-800 rounded-full w-2/3" />
+              <div className="h-3 bg-neutral-850 rounded-full w-4/5" />
+              <div className="h-2 bg-neutral-900 rounded-full w-1/2" />
+            </div>
+            <div className="pt-2.5 border-t border-neutral-850 flex justify-between items-center">
+              <div className="h-3.5 bg-neutral-800 rounded-full w-1/3" />
+              <div className="w-7 h-7 bg-neutral-800 rounded-[10px]" />
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function App() {
   const [activeTab, setActiveTab] = useState('Home'); // 'Home', 'Cart', 'Profile'
   const [cart, setCart] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [tgUser, setTgUser] = useState(null);
   
+  // Real-time catalog products state loaded from Google Sheets CSV pub format
+  const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
   // Fullscreen photo gallery modal states
   const [galleryProduct, setGalleryProduct] = useState(null);
   const [galleryIndex, setGalleryIndex] = useState(0);
+  const [slideDirection, setSlideDirection] = useState(0); // -1 for prev, 1 for next
+  const [imageLoaded, setImageLoaded] = useState(false);
 
   // Sorting Bottom Sheet States (Support combined multi-sorting)
   const [showFilters, setShowFilters] = useState(false);
@@ -180,7 +213,7 @@ function App() {
   // Checkout states
   const [checkoutStep, setCheckoutStep] = useState('idle');
 
-  // Initialize Telegram WebApp SDK
+  // Initialize Telegram WebApp SDK & Load Catalog Data from CSV
   useEffect(() => {
     if (window.Telegram?.WebApp) {
       const webApp = window.Telegram.WebApp;
@@ -197,7 +230,47 @@ function App() {
       
       webApp.enableClosingConfirmation();
     }
+
+    // Load data from Google Sheets CSV Pub link
+    const fetchCatalog = async () => {
+      try {
+        setLoading(true);
+        // Using output=csv for direct spreadsheet exports
+        const response = await fetch('https://docs.google.com/spreadsheets/d/e/2PACX-1vSw-OmLbLzeU932U3kcRChJGPRibjGnuAnjYGrftq1ODnr5vtWLFJdwuq9R7XgT1H1Aju7grysAKedg/pub?output=csv');
+        if (!response.ok) {
+          throw new Error('Failed to retrieve spreadsheet payload');
+        }
+        const csvText = await response.text();
+        const parsedProducts = parseCSV(csvText);
+        setProducts(parsedProducts);
+      } catch (err) {
+        console.error('Spreadsheet loading failure:', err);
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchCatalog();
   }, []);
+
+  // Preload next & previous gallery images in background to remove visual latency
+  useEffect(() => {
+    if (!galleryProduct) return;
+    setImageLoaded(false);
+
+    const len = galleryProduct.images.length;
+    if (len <= 1) return;
+
+    const nextIndex = (galleryIndex + 1) % len;
+    const prevIndex = (galleryIndex - 1 + len) % len;
+
+    const imgNext = new Image();
+    imgNext.src = galleryProduct.images[nextIndex];
+
+    const imgPrev = new Image();
+    imgPrev.src = galleryProduct.images[prevIndex];
+  }, [galleryIndex, galleryProduct]);
 
   // Get dynamic registration date simulation: DD.MM.YYYY, HH:MM
   const getRegDate = () => {
@@ -236,14 +309,14 @@ function App() {
 
   // Real-time Brand Search Filtering & Combined Multi-level Sorting
   const getFilteredProducts = () => {
-    let list = [...PRODUCTS];
+    let list = [...products];
     
-    // 1. Search Query filtering
+    // 1. Search Query filtering (checks brand or model field)
     if (searchQuery.trim() !== '') {
       const query = searchQuery.toLowerCase();
       list = list.filter(p => 
-        p.brand.toLowerCase().includes(query) ||
-        p.model.toLowerCase().includes(query)
+        (p.brand && p.brand.toLowerCase().includes(query)) ||
+        (p.model && p.model.toLowerCase().includes(query))
       );
     }
     
@@ -307,6 +380,7 @@ function App() {
   const handlePrevPhoto = (e) => {
     e.stopPropagation();
     if (!galleryProduct) return;
+    setSlideDirection(-1);
     setGalleryIndex(prev => 
       prev === 0 ? galleryProduct.images.length - 1 : prev - 1
     );
@@ -315,6 +389,7 @@ function App() {
   const handleNextPhoto = (e) => {
     e.stopPropagation();
     if (!galleryProduct) return;
+    setSlideDirection(1);
     setGalleryIndex(prev => 
       prev === galleryProduct.images.length - 1 ? 0 : prev + 1
     );
@@ -392,23 +467,41 @@ function App() {
                   </div>
                 </div>
 
-                {/* Catalog Grid */}
-                <div className="grid grid-cols-2 gap-4 mt-6 pb-8">
-                  {getFilteredProducts().map((product) => (
-                    <ProductCard 
-                      key={product.id}
-                      product={product}
-                      isInCart={cart.some(item => item.id === product.id)}
-                      onAddToCart={addToCart}
-                      onOpenGallery={openGallery}
-                    />
-                  ))}
-                </div>
-
-                {getFilteredProducts().length === 0 && (
-                  <div className="py-20 text-center text-neutral-500 font-light tracking-widest text-xs uppercase">
-                    No items found
+                {/* Loading & Error Content States */}
+                {loading ? (
+                  <SkeletonLoader />
+                ) : error ? (
+                  <div className="py-20 text-center space-y-4">
+                    <p className="text-xs text-neutral-500 font-light tracking-wider uppercase">Failed to retrieve spreadsheet payload</p>
+                    <button 
+                      type="button"
+                      onClick={() => window.location.reload()}
+                      className="bg-neutral-900 border border-neutral-800 text-neutral-300 rounded-full px-5 py-2 text-[9px] tracking-widest font-bold uppercase active:scale-95 transition-all"
+                    >
+                      Retry Load
+                    </button>
                   </div>
+                ) : (
+                  <>
+                    {/* Catalog Grid */}
+                    <div className="grid grid-cols-2 gap-4 mt-6 pb-8">
+                      {getFilteredProducts().map((product) => (
+                        <ProductCard 
+                          key={product.id}
+                          product={product}
+                          isInCart={cart.some(item => item.id === product.id)}
+                          onAddToCart={addToCart}
+                          onOpenGallery={openGallery}
+                        />
+                      ))}
+                    </div>
+
+                    {getFilteredProducts().length === 0 && (
+                      <div className="py-20 text-center text-neutral-500 font-light tracking-widest text-xs uppercase">
+                        No items found
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             )}
@@ -623,7 +716,7 @@ function App() {
         </button>
       </nav>
 
-      {/* FULLSCREEN IMAGE GALLERY MODAL WITH SPRING ZOOM TRANSITIONS */}
+      {/* FULLSCREEN IMAGE GALLERY MODAL WITH SPRING ZOOM & SLIDE TRANSITIONS */}
       <AnimatePresence>
         {galleryProduct && (
           <motion.div 
@@ -648,28 +741,59 @@ function App() {
             </div>
 
             {/* Center Swipeable Image Wrapper */}
-            <div className="relative flex-grow flex items-center justify-center w-full min-h-0 my-2">
-              <motion.div 
-                initial={{ scale: 0.95, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                exit={{ scale: 0.95, opacity: 0 }}
-                transition={{ type: "spring", stiffness: 150, damping: 18 }}
-                className="relative w-full max-w-sm max-h-[50vh] bg-neutral-950 rounded-[24px] overflow-hidden border border-neutral-800/10 shadow-2xl flex items-center justify-center aspect-[4/5]"
-              >
-                <img 
-                  src={galleryProduct.images[galleryIndex]} 
-                  alt="Fullscreen View" 
-                  className="w-full h-full max-h-[50vh] object-contain"
-                  draggable="false"
-                  onContextMenu={(e) => e.preventDefault()}
-                />
-              </motion.div>
+            <div className="relative flex-grow flex items-center justify-center w-full min-h-0 my-2 overflow-hidden">
+              {/* Spinner loader while image loads */}
+              {!imageLoaded && (
+                <div className="absolute inset-0 flex items-center justify-center bg-black/45 backdrop-blur-[2px] z-10 rounded-[24px]">
+                  <div className="w-8 h-8 border-2 border-neutral-600 border-t-transparent rounded-full animate-spin"></div>
+                </div>
+              )}
+
+              {/* 
+                USER TIP: Рекомендуется сжимать фотографии перед загрузкой на фотохостинг до разрешения 1000-1200px по широкой стороне. 
+                Это ускорит загрузку и работу галереи в 5-10 раз.
+              */}
+              <div className="relative w-full max-w-sm max-h-[50vh] bg-neutral-950 rounded-[24px] overflow-hidden border border-neutral-800/10 shadow-2xl flex items-center justify-center aspect-[4/5]">
+                <AnimatePresence initial={false} custom={slideDirection}>
+                  <motion.img 
+                    key={galleryProduct.images[galleryIndex]}
+                    custom={slideDirection}
+                    variants={{
+                      enter: (direction) => ({
+                        x: direction > 0 ? '100%' : '-100%',
+                        opacity: 0
+                      }),
+                      center: {
+                        x: 0,
+                        opacity: 1
+                      },
+                      exit: (direction) => ({
+                        x: direction < 0 ? '100%' : '-100%',
+                        opacity: 0
+                      })
+                    }}
+                    initial="enter"
+                    animate="center"
+                    exit="exit"
+                    transition={{
+                      x: { type: "spring", stiffness: 300, damping: 30 },
+                      opacity: { duration: 0.2 }
+                    }}
+                    src={galleryProduct.images[galleryIndex]} 
+                    alt="Fullscreen View" 
+                    className="w-full h-full max-h-[50vh] object-contain absolute"
+                    draggable="false"
+                    onContextMenu={(e) => e.preventDefault()}
+                    onLoad={() => setImageLoaded(true)}
+                  />
+                </AnimatePresence>
+              </div>
 
               {/* Left Arrow */}
               <button
                 type="button"
                 onClick={handlePrevPhoto}
-                className="absolute left-0 top-1/2 -translate-y-1/2 p-2.5 rounded-full bg-neutral-900/80 text-white hover:bg-neutral-800 transition-colors border border-neutral-800/20 active:scale-90"
+                className="absolute left-0 top-1/2 -translate-y-1/2 p-2.5 rounded-full bg-neutral-900/80 text-white hover:bg-neutral-800 transition-colors border border-neutral-800/20 active:scale-90 z-20"
               >
                 <ChevronLeft size={16} strokeWidth={2} />
               </button>
@@ -678,7 +802,7 @@ function App() {
               <button
                 type="button"
                 onClick={handleNextPhoto}
-                className="absolute right-0 top-1/2 -translate-y-1/2 p-2.5 rounded-full bg-neutral-900/80 text-white hover:bg-neutral-800 transition-colors border border-neutral-800/20 active:scale-90"
+                className="absolute right-0 top-1/2 -translate-y-1/2 p-2.5 rounded-full bg-neutral-900/80 text-white hover:bg-neutral-800 transition-colors border border-neutral-800/20 active:scale-90 z-20"
               >
                 <ChevronRight size={16} strokeWidth={2} />
               </button>
