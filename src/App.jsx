@@ -225,7 +225,7 @@ function App() {
       tg.expand();
       try { tg.setHeaderColor('#000000'); } catch (_) {}
       try { tg.setBackgroundColor('#000000'); } catch (_) {}
-      try { tg.enableClosingConfirmation(); } catch (_) {}
+      try { tg.disableClosingConfirmation(); } catch (_) {}
     } catch (e) {
       console.error('Telegram SDK init error:', e);
     }
@@ -635,16 +635,11 @@ function App() {
                 </div>
 
                 {/* Info tiles */}
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="bg-[#1c1c1c] rounded-[20px] border border-neutral-800/15 p-4 space-y-1">
+                <div className="w-full">
+                  <div className="bg-[#1c1c1c] rounded-[20px] border border-neutral-800/15 p-4 space-y-1 w-full">
                     <div className="text-[8px] tracking-[0.2em] text-neutral-500 font-bold uppercase">Доставка</div>
-                    <div className="text-xs text-white font-medium">По всей Украине</div>
-                    <div className="text-[9px] text-neutral-500 font-light">Нова Пошта</div>
-                  </div>
-                  <div className="bg-[#1c1c1c] rounded-[20px] border border-neutral-800/15 p-4 space-y-1">
-                    <div className="text-[8px] tracking-[0.2em] text-neutral-500 font-bold uppercase">Оплата</div>
-                    <div className="text-xs text-white font-medium">Наложенный платёж</div>
-                    <div className="text-[9px] text-neutral-500 font-light">Предоплата 50%</div>
+                    <div className="text-xs text-white font-medium">По всему миру</div>
+                    <div className="text-[9px] text-neutral-500 font-light">Быстро и надежно, с трек-номером</div>
                   </div>
                 </div>
 
