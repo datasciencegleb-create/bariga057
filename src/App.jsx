@@ -57,9 +57,9 @@ const parseCSV = (csvText) => {
       obj[header] = val;
     });
 
-    // Parse image urls into array
+    // Parse image urls into array — URLs are separated by semicolons (;) in Google Sheets
     if (obj.images) {
-      obj.images = obj.images.split(',')
+      obj.images = obj.images.split(';')
         .map(url => url.trim().replace(/^"|"$/g, ''))
         .filter(Boolean);
     } else {
