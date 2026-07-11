@@ -196,9 +196,7 @@ function App() {
   const [activeTab, setActiveTab] = useState('Home'); // 'Home', 'Cart', 'Profile'
   const [cart, setCart] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
-  // Telegram user object — populated once SDK confirms it is ready
-  const [user, setUser] = useState(null);
-  
+
   // Real-time catalog products state loaded from Google Sheets CSV pub format
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -218,40 +216,22 @@ function App() {
   // Checkout states
   const [checkoutStep, setCheckoutStep] = useState('idle');
 
-  // ── 1. Telegram WebApp init (safe, isolated from catalog loading) ──────────
+  // ── Telegram basic init (expand + dark theme only) ──────────────────────────
   useEffect(() => {
     const tg = window.Telegram?.WebApp;
-    if (!tg) return; // Running in a regular browser — skip silently
-
+    if (!tg) return;
     try {
       tg.ready();
       tg.expand();
-
-      // Theme — safe, older SDK may not have these methods
       try { tg.setHeaderColor('#000000'); } catch (_) {}
       try { tg.setBackgroundColor('#000000'); } catch (_) {}
       try { tg.enableClosingConfirmation(); } catch (_) {}
-
-      // Read user — no ID/name restrictions, accepts ANY Telegram user
-      const tgUser = tg.initDataUnsafe?.user;
-      if (tgUser) setUser(tgUser);
-
-      // Fallback: retry after viewport fires (some clients lag on initDataUnsafe)
-      const retryReadUser = () => {
-        const retryUser = tg.initDataUnsafe?.user;
-        if (retryUser) setUser(retryUser);
-      };
-      tg.onEvent('viewportChanged', retryReadUser);
-
-      return () => {
-        try { tg.offEvent('viewportChanged', retryReadUser); } catch (_) {}
-      };
-    } catch (error) {
-      console.error('Telegram SDK init error:', error);
+    } catch (e) {
+      console.error('Telegram SDK init error:', e);
     }
   }, []);
 
-  // ── 2. Load catalog from Google Sheets CSV (always runs, independent of TG) ─
+  // ── Load catalog from Google Sheets CSV ─────────────────────────────────────
   useEffect(() => {
     const fetchCatalog = async () => {
       try {
@@ -267,7 +247,6 @@ function App() {
         setLoading(false);
       }
     };
-
     fetchCatalog();
   }, []);
 
@@ -359,40 +338,31 @@ function App() {
     return list;
   };
 
-  // Telegram SDK sendData Checkout and Close App
+  // Simple sendData checkout — sends order JSON to the Telegram bot
   const handleCheckout = () => {
     if (cart.length === 0) return;
 
     const orderPayload = {
       items: cart.map(item => ({
-        id: item.id,
         brand: item.brand,
         model: item.model,
         size: item.size,
         cond: item.cond,
         price: item.price,
-        quantity: 1, // Strictly 1 unit per unique item
+        quantity: 1,
       })),
       total: getCartTotal()
     };
 
     if (window.Telegram?.WebApp?.sendData) {
-      if (window.Telegram.WebApp.HapticFeedback) {
-        window.Telegram.WebApp.HapticFeedback.notificationOccurred('success');
-      }
+      try { window.Telegram.WebApp.HapticFeedback.notificationOccurred('success'); } catch (_) {}
       window.Telegram.WebApp.sendData(JSON.stringify(orderPayload));
-      
-      // Close the Telegram Mini App immediately after sending order data
-      setTimeout(() => {
-        window.Telegram.WebApp.close();
-      }, 150);
+      setTimeout(() => { try { window.Telegram.WebApp.close(); } catch (_) {} }, 150);
     } else {
-      console.log('Telegram WebApp.sendData triggered:', orderPayload);
+      // Browser fallback — simulate success for dev testing
+      console.log('[DEV] sendData payload:', orderPayload);
       setCheckoutStep('processing');
-      setTimeout(() => {
-        setCheckoutStep('success');
-        setCart([]);
-      }, 1500);
+      setTimeout(() => { setCheckoutStep('success'); setCart([]); }, 1200);
     }
   };
 
@@ -636,65 +606,58 @@ function App() {
               </div>
             )}
 
-            {/* VIEW 3: PROFILE */}
+            {/* VIEW 3: PROFILE — Static branded card */}
             {activeTab === 'Profile' && (
               <div className="py-2 space-y-6">
                 <h2 className="text-xs tracking-[0.2em] text-neutral-400 font-semibold uppercase border-b border-neutral-800/30 pb-3">
                   Профиль
                 </h2>
 
-                {/* Dark Rounded User Card */}
+                {/* Brand card */}
                 <div className="bg-[#1c1c1c] rounded-2xl p-5 flex items-center gap-4 border border-neutral-800/10 shadow-lg">
-                  {/* Left: Round Avatar */}
-                  <div className="w-14 h-14 rounded-full overflow-hidden flex-shrink-0 bg-neutral-800 border border-neutral-700/30 flex items-center justify-center shadow-inner">
-                    {user?.photo_url ? (
-                      <img 
-                        src={user.photo_url} 
-                        alt="Profile Avatar" 
-                        className="w-full h-full object-cover" 
-                        draggable="false" 
-                        onContextMenu={(e) => e.preventDefault()} 
-                      />
-                    ) : (
-                      <span className="text-white text-xl font-bold uppercase select-none">
-                        {user?.first_name?.[0] || user?.username?.[0] || 'Г'}
-                      </span>
-                    )}
+                  {/* Avatar: grey circle with B */}
+                  <div className="w-14 h-14 rounded-full flex-shrink-0 bg-neutral-700 border border-neutral-600/40 flex items-center justify-center shadow-inner">
+                    <span className="text-white text-xl font-black uppercase select-none tracking-tight">B</span>
                   </div>
 
-                  {/* Right: name, username, date, ID */}
+                  {/* Info */}
                   <div className="flex-grow min-w-0">
-                    <h3 className="text-sm font-bold text-white truncate uppercase tracking-wider">
-                      {user ? `${user.first_name}${user.last_name ? ' ' + user.last_name : ''}` : 'Гость'}
+                    <h3 className="text-sm font-bold text-white uppercase tracking-wider">
+                      bariga057 member
                     </h3>
-                    <p className="text-[10px] text-neutral-500 font-light mt-0.5 tracking-wide truncate">
-                      {user?.username ? `@${user.username}` : '@guest_account'}
+                    <p className="text-[10px] text-neutral-500 font-light mt-0.5 tracking-wide">
+                      @bariga057
                     </p>
-                    <p className="text-[9px] text-neutral-600 font-light mt-1 tracking-widest leading-none">
-                      ID: {user?.id ?? 'Неизвестно'}
-                    </p>
-                    <p className="text-[9px] text-neutral-450 font-light mt-2 uppercase tracking-widest leading-none">
-                      В магазине с {getRegDate()}
+                    <p className="text-[9px] text-neutral-600 font-light mt-2 uppercase tracking-widest">
+                      Exclusive streetwear catalog
                     </p>
                   </div>
                 </div>
 
-                {/* SDK Diagnostics details */}
-                <div className="bg-[#1c1c1c] rounded-[24px] border border-neutral-800/15 p-5 space-y-2.5 text-[10px] font-light tracking-wider text-neutral-500">
-                  <div className="text-[8px] tracking-[0.2em] text-neutral-400 font-bold uppercase mb-1">SDK DIAGNOSTICS</div>
-                  <div className="flex justify-between">
-                    <span>Platform</span>
-                    <span className="uppercase text-neutral-300">{window.Telegram?.WebApp?.platform || 'Browser'}</span>
+                {/* Info tiles */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="bg-[#1c1c1c] rounded-[20px] border border-neutral-800/15 p-4 space-y-1">
+                    <div className="text-[8px] tracking-[0.2em] text-neutral-500 font-bold uppercase">Доставка</div>
+                    <div className="text-xs text-white font-medium">По всей Украине</div>
+                    <div className="text-[9px] text-neutral-500 font-light">Нова Пошта</div>
                   </div>
-                  <div className="flex justify-between">
-                    <span>SDK Version</span>
-                    <span className="text-neutral-300">{window.Telegram?.WebApp?.version || 'N/A'}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>initData</span>
-                    <span className="text-neutral-300">{window.Telegram?.WebApp?.initData ? 'OK' : 'empty'}</span>
+                  <div className="bg-[#1c1c1c] rounded-[20px] border border-neutral-800/15 p-4 space-y-1">
+                    <div className="text-[8px] tracking-[0.2em] text-neutral-500 font-bold uppercase">Оплата</div>
+                    <div className="text-xs text-white font-medium">Наложенный платёж</div>
+                    <div className="text-[9px] text-neutral-500 font-light">Предоплата 50%</div>
                   </div>
                 </div>
+
+                {/* CTA button to channel */}
+                <a
+                  href="https://t.me/bariga057"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-center gap-2 w-full bg-[#1c1c1c] border border-neutral-800/20 text-neutral-300 rounded-[24px] py-3 text-[10px] font-bold tracking-widest uppercase active:scale-95 transition-all"
+                >
+                  Написать в Telegram
+                  <ArrowRight size={11} strokeWidth={2.5} />
+                </a>
               </div>
             )}
           </motion.div>
