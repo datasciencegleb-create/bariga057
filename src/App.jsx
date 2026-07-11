@@ -89,6 +89,10 @@ const parseCondition = (cond) => {
   return parseFloat(cond) || 0;
 };
 
+// Format price in Ukrainian hryvnia with dot as thousands separator (e.g. 16300 → "16.300 ₴")
+const formatPrice = (price) =>
+  Number(price).toLocaleString('ru-RU').replace(/\s/g, '.') + ' ₴';
+
 // Product Card Component with uniform 24px roundings, CAPS brand names, and price/add row
 function ProductCard({ product, isInCart, onAddToCart, onOpenGallery }) {
   const handleAdd = () => {
@@ -139,7 +143,7 @@ function ProductCard({ product, isInCart, onAddToCart, onOpenGallery }) {
         {/* Price & Add (+) Button in the same row */}
         <div className="mt-3.5 pt-2.5 border-t border-neutral-850 flex justify-between items-center">
           <span className="text-xs text-[#e5e5e5] font-semibold tracking-wider">
-            ${product.price}
+            {formatPrice(product.price)}
           </span>
           
           <button
@@ -349,10 +353,12 @@ function App() {
     const orderPayload = {
       items: cart.map(item => ({
         id: item.id,
-        name: item.model,
+        brand: item.brand,
+        model: item.model,
+        size: item.size,
+        cond: item.cond,
         price: item.price,
-        quantity: 1, // Quantity is strictly 1 for unique items
-        size: item.size
+        quantity: 1, // Strictly 1 unit per unique item
       })),
       total: getCartTotal()
     };
@@ -583,7 +589,7 @@ function App() {
                               <X size={14} strokeWidth={1.5} />
                             </button>
                             <span className="text-xs text-neutral-450 font-light">
-                              ${item.price}.00
+                              {formatPrice(item.price)}
                             </span>
                           </div>
                         </div>
@@ -593,7 +599,7 @@ function App() {
                     <div className="border-t border-neutral-800/20 pt-4 space-y-2">
                       <div className="flex justify-between text-[11px] tracking-wider text-neutral-500 font-light">
                         <span>SUBTOTAL</span>
-                        <span>${getCartTotal()}.00</span>
+                        <span>{formatPrice(getCartTotal())}</span>
                       </div>
                       <div className="flex justify-between text-[11px] tracking-wider text-neutral-500 font-light">
                         <span>DELIVERY</span>
@@ -601,7 +607,7 @@ function App() {
                       </div>
                       <div className="flex justify-between text-xs tracking-widest text-[#e5e5e5] border-t border-neutral-800/20 pt-3 font-semibold">
                         <span>TOTAL</span>
-                        <span>${getCartTotal()}.00</span>
+                        <span>{formatPrice(getCartTotal())}</span>
                       </div>
                     </div>
 
