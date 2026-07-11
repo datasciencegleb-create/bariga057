@@ -125,13 +125,13 @@ function ProductCard({ product, isInCart, onAddToCart, onOpenGallery }) {
       {/* Product Information */}
       <div className="p-4 flex flex-col flex-grow justify-between">
         <div>
-          {/* Brand - Caps & Bold, Neutral Grey color */}
+          {/* Brand tag — small neutral grey */}
           <span className="text-[10px] tracking-wider text-neutral-500 font-bold uppercase block">
             BARIGA057
           </span>
-          {/* Model Name - White, medium weight */}
+          {/* Full title: Brand + Model — white, medium weight */}
           <h3 className="text-xs text-white font-medium mt-0.5 tracking-wider truncate uppercase">
-            {product.model}
+            {product.brand} {product.model}
           </h3>
           
           {/* Light Gray Small Metadata line */}
@@ -196,7 +196,8 @@ function App() {
   const [activeTab, setActiveTab] = useState('Home'); // 'Home', 'Cart', 'Profile'
   const [cart, setCart] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [tgUser, setTgUser] = useState(null);
+  // Telegram user object — populated once SDK confirms it is ready
+  const [user, setUser] = useState(null);
   
   // Real-time catalog products state loaded from Google Sheets CSV pub format
   const [products, setProducts] = useState([]);
@@ -219,20 +220,24 @@ function App() {
 
   // Initialize Telegram WebApp SDK & Load Catalog Data from CSV
   useEffect(() => {
-    if (window.Telegram?.WebApp) {
-      const webApp = window.Telegram.WebApp;
-      webApp.ready();
-      webApp.expand();
-      
-      // Force Deep Dark Mode styles on WebApp container
-      webApp.setHeaderColor('#000000');
-      webApp.setBackgroundColor('#000000');
-      
-      if (webApp.initDataUnsafe?.user) {
-        setTgUser(webApp.initDataUnsafe.user);
+    // --- Telegram WebApp init ---
+    // IMPORTANT: call ready() FIRST so the SDK fires its own init chain,
+    // then read initDataUnsafe AFTER it has been populated.
+    const tg = window.Telegram?.WebApp;
+    if (tg) {
+      tg.ready();
+      tg.expand();
+
+      // Force deep dark theme
+      try { tg.setHeaderColor('#000000'); } catch (_) {}
+      try { tg.setBackgroundColor('#000000'); } catch (_) {}
+      try { tg.enableClosingConfirmation(); } catch (_) {}
+
+      // Primary read: immediately after ready()
+      const tgUser = tg.initDataUnsafe?.user;
+      if (tgUser) {
+        setUser(tgUser);
       }
-      
-      webApp.enableClosingConfirmation();
     }
 
     // Load data from Google Sheets CSV Pub link
@@ -567,8 +572,8 @@ function App() {
                           
                           <div className="flex-grow flex flex-col justify-between py-0.5">
                             <div>
-                              <span className="text-[9px] tracking-wider text-neutral-500 font-bold uppercase block">{item.brand}</span>
-                              <h4 className="text-xs text-white font-medium tracking-wide uppercase truncate max-w-[160px]">{item.model}</h4>
+                              <span className="text-[9px] tracking-wider text-neutral-500 font-bold uppercase block">BARIGA057</span>
+                              <h4 className="text-xs text-white font-medium tracking-wide uppercase truncate max-w-[160px]">{item.brand} {item.model}</h4>
                               <span className="text-[8px] text-neutral-400 font-semibold bg-neutral-900/60 px-1.5 py-0.5 rounded-[5px] border border-neutral-800/20 uppercase mt-1 inline-block">
                                 Size: {item.size} • {item.cond}
                               </span>
@@ -623,20 +628,20 @@ function App() {
               </div>
             )}
 
-            {/* VIEW 3: PROFILE - REBUILT TO MATCH USER SPECIFIED LAYOUT AND DATE */}
+            {/* VIEW 3: PROFILE */}
             {activeTab === 'Profile' && (
               <div className="py-2 space-y-6">
                 <h2 className="text-xs tracking-[0.2em] text-neutral-400 font-semibold uppercase border-b border-neutral-800/30 pb-3">
                   Профиль
                 </h2>
 
-                {/* Dark Rounded User Card bg-[#1c1c1c] rounded-2xl */}
+                {/* Dark Rounded User Card */}
                 <div className="bg-[#1c1c1c] rounded-2xl p-5 flex items-center gap-4 border border-neutral-800/10 shadow-lg">
                   {/* Left: Round Avatar */}
                   <div className="w-14 h-14 rounded-full overflow-hidden flex-shrink-0 bg-neutral-800 border border-neutral-700/30 flex items-center justify-center shadow-inner">
-                    {tgUser?.photo_url ? (
+                    {user?.photo_url ? (
                       <img 
-                        src={tgUser.photo_url} 
+                        src={user.photo_url} 
                         alt="Profile Avatar" 
                         className="w-full h-full object-cover" 
                         draggable="false" 
@@ -644,20 +649,23 @@ function App() {
                       />
                     ) : (
                       <span className="text-white text-xl font-bold uppercase select-none">
-                        {tgUser?.first_name?.[0] || tgUser?.username?.[0] || 'S'}
+                        {user?.first_name?.[0] || user?.username?.[0] || 'Г'}
                       </span>
                     )}
                   </div>
 
-                  {/* Right: Username, full name and dynamic date */}
+                  {/* Right: name, username, date, ID */}
                   <div className="flex-grow min-w-0">
                     <h3 className="text-sm font-bold text-white truncate uppercase tracking-wider">
-                      {tgUser ? `${tgUser.first_name} ${tgUser.last_name || ''}` : 'SENSE VISITOR'}
+                      {user ? `${user.first_name}${user.last_name ? ' ' + user.last_name : ''}` : 'Гость'}
                     </h3>
                     <p className="text-[10px] text-neutral-500 font-light mt-0.5 tracking-wide truncate">
-                      {tgUser?.username ? `@${tgUser.username}` : '@guest_account'}
+                      {user?.username ? `@${user.username}` : '@guest_account'}
                     </p>
-                    <p className="text-[9px] text-neutral-450 font-light mt-2.5 uppercase tracking-widest leading-none">
+                    <p className="text-[9px] text-neutral-600 font-light mt-1 tracking-widest leading-none">
+                      ID: {user?.id ?? 'Неизвестно'}
+                    </p>
+                    <p className="text-[9px] text-neutral-450 font-light mt-2 uppercase tracking-widest leading-none">
                       В магазине с {getRegDate()}
                     </p>
                   </div>
@@ -668,11 +676,15 @@ function App() {
                   <div className="text-[8px] tracking-[0.2em] text-neutral-400 font-bold uppercase mb-1">SDK DIAGNOSTICS</div>
                   <div className="flex justify-between">
                     <span>Platform</span>
-                    <span className="uppercase text-neutral-300">{window.Telegram?.WebApp?.platform || 'Browser Simulator'}</span>
+                    <span className="uppercase text-neutral-300">{window.Telegram?.WebApp?.platform || 'Browser'}</span>
                   </div>
                   <div className="flex justify-between">
                     <span>SDK Version</span>
                     <span className="text-neutral-300">{window.Telegram?.WebApp?.version || 'N/A'}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>initData</span>
+                    <span className="text-neutral-300">{window.Telegram?.WebApp?.initData ? 'OK' : 'empty'}</span>
                   </div>
                 </div>
               </div>
@@ -817,10 +829,10 @@ function App() {
             {/* Bottom Metadata Block */}
             <div className="text-center space-y-1 relative z-10 flex-shrink-0 w-full py-2">
               <span className="text-[9px] tracking-[0.25em] text-neutral-500 font-bold uppercase block">
-                {galleryProduct.brand}
+                BARIGA057
               </span>
               <h4 className="text-xs text-white font-medium tracking-widest uppercase truncate px-4">
-                {galleryProduct.model}
+                {galleryProduct.brand} {galleryProduct.model}
               </h4>
               <p className="text-[9px] text-neutral-450 tracking-wider font-light uppercase">
                 SIZE: {galleryProduct.size} • COND: {galleryProduct.cond} • {galleryProduct.kit}
