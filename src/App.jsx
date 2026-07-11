@@ -236,7 +236,7 @@ function App() {
     const fetchCatalog = async () => {
       try {
         setLoading(true);
-        const response = await fetch('https://docs.google.com/spreadsheets/d/e/2PACX-1vSw-OmLbLzeU932U3kcRChJGPRibjGnuAnjYGrftq1ODnr5vtWLFJdwuq9R7XgT1H1Aju7grysAKedg/pub?output=csv');
+        const response = await fetch('https://docs.google.com/spreadsheets/d/e/2PACX-1vSw-OmLbLzeU932U3kcRChJGPRibjGnuAnjYGrftq1ODnr5vtWLFJdwuq9R7XgT1H1Aju7grysAKedg/pub?output=csv&t=' + new Date().getTime());
         if (!response.ok) throw new Error('Failed to retrieve spreadsheet payload');
         const csvText = await response.text();
         setProducts(parseCSV(csvText));
